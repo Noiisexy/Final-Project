@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climb Balance Game</title>
+    <style>
+        :root {
+            --ink: #20242a;
+            --muted: #68717d;
+            --green: #243d30;
+            --orange: #d97b29;
+            --yellow: #f4c95d;
+            --paper: #fffdf8;
+            --wall: #efe6d5;
+            --danger: #b84036;
+            --safe: #4e8a52;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #e9ece3;
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            background: var(--green);
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 34px;
+        }
+
+        header p {
+            margin: 8px auto 0;
+            max-width: 780px;
+            color: #e7ece2;
+        }
+
+        header a {
+            display: inline-block;
+            color: var(--yellow);
+            margin-top: 12px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 280px minmax(360px, 680px) 280px;
+            gap: 18px;
+            width: min(1240px, calc(100% - 28px));
+            margin: 22px auto;
+            align-items: start;
+        }
+
+        .panel,
+        .game-shell {
+            background: var(--paper);
+            border: 2px solid #d7d0c1;
+            border-radius: 8px;
+            padding: 18px;
+            box-shadow: 0 10px 24px rgba(32, 36, 42, 0.08);
+        }
+
+        h2 {
+            color: var(--green);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            margin: 0 0 12px;
+        }
+
+        button {
+            width: 100%;
+            border: 0;
+            border-radius: 6px;
+            padding: 11px 12px;
+            margin-top: 10px;
+            background: var(--green);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: var(--orange);
+        }
+
+        button.light {
+            background: #edf1e8;
+            color: var(--green);
+            border: 1px solid #c6d1bd;
+        }
+
+        button:hover {
+            filter: brightness(1.05);
+        }
+
+        canvas {
+            width: 100%;
+            aspect-ratio: 5 / 6;
+            display: block;
+            background:
+                linear-gradient(90deg, rgba(36, 61, 48, 0.08) 1px, transparent 1px),
+                linear-gradient(rgba(36, 61, 48, 0.08) 1px, transparent 1px),
+                var(--wall);
+            background-size: 54px 54px;
+            border: 8px solid #786554;
+            border-radius: 8px;
+            touch-action: none;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 1px solid #e4ded2;
+            padding: 9px 0;
+        }
+
+        .stat strong {
+            color: var(--green);
+        }
+
+        .message {
+            margin-top: 14px;
+            padding: 12px;
+            background: #fff5dc;
+            border: 1px solid #f0d591;
+            border-radius: 6px;
+            color: #5d4214;
+            font-weight: bold;
+        }
+
+        .mini-note {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .route-tag {
+            padding: 12px;
+            background: #edf1e8;
+            border-left: 6px solid var(--orange);
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .key {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .key span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        @media (max-width: 1040px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            header h1 {
+                font-size: 28px;
+            }
+
+            .panel,
+            .game-shell {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Climb Balance Game</h1>
+        <p>Drag hands and feet onto the auto-generated route holds. Each good attachment helps reset balance, but stretching too far ends the attempt.</p>
+        <a href="index.html">Back to Utah Valley Climbing Price Guide</a>
+    </header>
+
+    <main class="layout">
+        <section class="panel">
+            <h2>How to Play</h2>
+            <p>Move the climber from the bottom of the wall to the top without losing balance.</p>
+            <div class="key">
+                <span><i class="dot" style="background:#d97b29"></i>Route holds</span>
+                <span><i class="dot" style="background:#3478a8"></i>Left hand</span>
+                <span><i class="dot" style="background:#b84036"></i>Right hand</span>
+                <span><i class="dot" style="background:#4e8a52"></i>Feet</span>
+            </div>
+            <button id="newGame">Generate New Route</button>
+            <button id="resetAttempt" class="secondary">Reset Attempt</button>
+            <button id="easyMode" class="light">Toggle Easy Mode</button>
+            <p class="mini-note">Click a hand or foot to select it, then click the exact orange hold where you want it to attach. The other body parts stay attached.</p>
+        </section>
+
+        <section class="game-shell">
+            <canvas id="game" width="600" height="720" aria-label="Physics climbing balance game"></canvas>
+        </section>
+
+        <section class="panel">
+            <h2>Attempt Report</h2>
+            <div class="route-tag" id="routeName">Wasatch Balance</div>
+            <div class="stat"><span>Score</span><strong id="score">0</strong></div>
+            <div class="stat"><span>High point</span><strong id="highPoint">0%</strong></div>
+            <div class="stat"><span>Moves</span><strong id="moves">0</strong></div>
+            <div class="stat"><span>Mode</span><strong id="mode">Normal</strong></div>
+            <div class="message" id="message">Grab the starting holds and begin climbing.</div>
+            <p class="mini-note">The game uses a Matter.js physics simulation for gravity, body motion, and balance stress.</p>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+    <script>
+        const canvas = document.querySelector("#game");
+        const ctx = canvas.getContext("2d");
+        const scoreText = document.querySelector("#score");
+        const highPointText = document.querySelector("#highPoint");
+        const movesText = document.querySelector("#moves");
+        const modeText = document.querySelector("#mode");
+        const message = document.querySelector("#message");
+        const routeName = document.querySelector("#routeName");
+        const routeNames = ["Wasatch Balance", "Lehi Dyno Line", "Orem Overhang", "Provo Pinch Party", "Granite Gravity", "Campus Traverse"];
+
+        let engine;
+        let world;
+        let torso;
+        let leftHand;
+        let rightHand;
+        let leftFoot;
+        let rightFoot;
+        let constraints = [];
+        let bodyLinks = [];
+        let holds = [];
+        let route = [];
+        let selectedPart = null;
+        let limbAnchors = new Map();
+        let moves = 0;
+        let score = 0;
+        let highPoint = 0;
+        let balance = 100;
+        let recoveryBoost = 0;
+        let gameOver = false;
+        let easyMode = false;
+
+        const colors = {
+            route: "#d97b29",
+            wallHold: "#c7bba9",
+            left: "#3478a8",
+            right: "#b84036",
+            foot: "#4e8a52",
+            torso: "#243d30"
+        };
+
+        document.querySelector("#newGame").addEventListener("click", newGame);
+        document.querySelector("#resetAttempt").addEventListener("click", resetAttempt);
+        document.querySelector("#easyMode").addEventListener("click", () => {
+            easyMode = !easyMode;
+            modeText.textContent = easyMode ? "Easy" : "Normal";
+            message.textContent = easyMode ? "Easy mode gives you a wider balance window." : "Normal mode restored.";
+        });
+
+        canvas.addEventListener("click", (event) => {
+            if (gameOver) return;
+            const point = pointerPosition(event);
+
+            if (selectedPart) {
+                const targetHold = nearestRouteHold(point, 30);
+                if (targetHold) {
+                    snapBodyPartToHold(selectedPart, targetHold, limbAnchors.get(selectedPart));
+                    return;
+                }
+
+                const clickedPart = nearestBody(point, [leftHand, rightHand, leftFoot, rightFoot]);
+                if (clickedPart) {
+                    selectedPart = clickedPart;
+                    message.textContent = `${bodyPartLabel(selectedPart)} selected. Now click an orange hold.`;
+                    return;
+                }
+
+                message.textContent = `${bodyPartLabel(selectedPart)} needs an exact orange hold click.`;
+                return;
+            }
+
+            const clickedPart = nearestBody(point, [leftHand, rightHand, leftFoot, rightFoot]);
+            if (clickedPart) {
+                selectedPart = clickedPart;
+                message.textContent = `${bodyPartLabel(selectedPart)} selected. Now click an orange hold.`;
+            } else {
+                message.textContent = "Select a hand or foot first.";
+            }
+        });
+
+        function newGame() {
+            if (!window.Matter) {
+                message.textContent = "Matter.js did not load. Connect to the internet and refresh this page.";
+                return;
+            }
+
+            engine = Matter.Engine.create();
+            world = engine.world;
+            engine.gravity.y = 0.9;
+            constraints = [];
+            bodyLinks = [];
+            limbAnchors = new Map();
+            moves = 0;
+            score = 0;
+            highPoint = 0;
+            balance = 100;
+            recoveryBoost = 0;
+            gameOver = false;
+            selectedPart = null;
+            routeName.textContent = routeNames[Math.floor(Math.random() * routeNames.length)];
+
+            generateHolds();
+            generateRoute();
+            createClimber();
+            updateHud("Drag hands and feet to orange holds. Use all four points to recover balance.");
+        }
+
+        function resetAttempt() {
+            if (!route.length) {
+                newGame();
+                return;
+            }
+
+            moves = 0;
+            highPoint = 0;
+            balance = 100;
+            recoveryBoost = 0;
+            gameOver = false;
+            selectedPart = null;
+            Matter.World.clear(world, false);
+            constraints = [];
+            bodyLinks = [];
+            limbAnchors = new Map();
+            createClimber();
+            updateHud("Attempt reset. Start from the bottom again.");
+        }
+
+        function generateHolds() {
+            holds = [];
+            for (let row = 0; row < 12; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const jitterX = Math.random() * 14 - 7;
+                    const jitterY = Math.random() * 10 - 5;
+                    holds.push({
+                        x: 72 + col * 76 + jitterX,
+                        y: 46 + row * 56 + jitterY,
+                        route: false
+                    });
+                }
+            }
+        }
+
+        function generateRoute() {
+            route = [];
+            let col = 2 + Math.floor(Math.random() * 3);
+            for (let row = 11; row >= 0; row--) {
+                if (Math.random() > 0.45) {
+                    col += Math.floor(Math.random() * 3) - 1;
+                }
+                col = Math.max(0, Math.min(6, col));
+                const hold = holds[row * 7 + col];
+                hold.route = true;
+                route.push(hold);
+
+                if (row > 0 && Math.random() > 0.35) {
+                    const neighborCol = Math.max(0, Math.min(6, col + (Math.random() > 0.5 ? 1 : -1)));
+                    const helper = holds[row * 7 + neighborCol];
+                    helper.route = true;
+                    route.push(helper);
+                }
+            }
+        }
+
+        function createClimber() {
+            const start = route[0];
+            const second = route[1];
+            torso = Matter.Bodies.circle(start.x, start.y + 44, 24, { frictionAir: 0.08, restitution: 0.05 });
+            leftHand = Matter.Bodies.circle(start.x - 22, start.y, 13, { isSensor: true, frictionAir: 0.2 });
+            rightHand = Matter.Bodies.circle(second.x + 18, second.y, 13, { isSensor: true, frictionAir: 0.2 });
+            leftFoot = Matter.Bodies.circle(start.x - 26, start.y + 70, 11, { isSensor: true, frictionAir: 0.2 });
+            rightFoot = Matter.Bodies.circle(start.x + 26, start.y + 70, 11, { isSensor: true, frictionAir: 0.2 });
+
+            Matter.World.add(world, [torso, leftHand, rightHand, leftFoot, rightFoot]);
+            connectBody(torso, leftHand, 58);
+            connectBody(torso, rightHand, 58);
+            connectBody(torso, leftFoot, 68);
+            connectBody(torso, rightFoot, 68);
+            attach(leftHand, start);
+            attach(rightHand, second);
+            attach(leftFoot, { x: start.x - 30, y: start.y + 52 });
+            attach(rightFoot, { x: start.x + 30, y: start.y + 52 });
+        }
+
+        function connectBody(bodyA, bodyB, length) {
+            const link = Matter.Constraint.create({
+                bodyA,
+                bodyB,
+                length,
+                stiffness: 0.055,
+                damping: 0.18
+            });
+            bodyLinks.push(link);
+            Matter.World.add(world, link);
+        }
+
+        function attach(body, anchor) {
+            const existing = constraints.find((constraint) => constraint.bodyB === body);
+            if (existing) Matter.World.remove(world, existing);
+            const constraint = Matter.Constraint.create({
+                pointA: { x: anchor.x, y: anchor.y },
+                bodyB: body,
+                length: 0,
+                stiffness: 0.9,
+                damping: 0.35
+            });
+            constraints = constraints.filter((item) => item.bodyB !== body);
+            constraints.push(constraint);
+            limbAnchors.set(body, { x: anchor.x, y: anchor.y, route: anchor.route });
+            Matter.World.add(world, constraint);
+        }
+
+        function snapBodyPartToHold(bodyPart, nearest, previousAnchor) {
+            const isFoot = bodyPart === leftFoot || bodyPart === rightFoot;
+            const maxReach = easyMode ? (isFoot ? 165 : 150) : (isFoot ? 138 : 125);
+            const reachStart = previousAnchor || torso.position;
+
+            if (!nearest) {
+                message.textContent = `${bodyPartLabel(bodyPart)} needs an exact orange hold click.`;
+                return;
+            }
+
+            if (distance(reachStart, nearest) > maxReach) {
+                message.textContent = `${bodyPartLabel(bodyPart)} cannot reach that hold from its current position.`;
+                return;
+            }
+
+            attach(bodyPart, nearest);
+            Matter.Body.setPosition(bodyPart, { x: nearest.x, y: nearest.y });
+            Matter.Body.setVelocity(bodyPart, { x: 0, y: 0 });
+            moves += 1;
+            recoveryBoost = Math.min(35, recoveryBoost + (isFoot ? 18 : 14));
+            balance = Math.min(100, balance + recoveryBoost);
+            updateHighPoint();
+            updateHud(`${bodyPartLabel(bodyPart)} attached. Balance recovered.`);
+            selectedPart = null;
+
+            if (!isFoot && nearest === route[route.length - 1]) {
+                score += Math.max(20, 140 - moves * 5);
+                updateHud("Top reached. You sent the route.");
+                gameOver = true;
+            }
+        }
+
+        function updateHighPoint() {
+            const topY = Math.min(leftHand.position.y, rightHand.position.y);
+            const progress = Math.round(((662 - topY) / 616) * 100);
+            highPoint = Math.max(highPoint, Math.max(0, Math.min(100, progress)));
+            score += 4;
+        }
+
+        function bodyPartLabel(bodyPart) {
+            if (bodyPart === leftHand) return "Left hand";
+            if (bodyPart === rightHand) return "Right hand";
+            if (bodyPart === leftFoot) return "Left foot";
+            return "Right foot";
+        }
+
+        function nearestRouteHold(point, snapRadius) {
+            const nearest = route.reduce((best, hold) => {
+                if (!best) return hold;
+                return distance(point, hold) < distance(point, best) ? hold : best;
+            }, null);
+            return nearest && distance(point, nearest) <= snapRadius ? nearest : null;
+        }
+
+        function nearestBody(point, bodies) {
+            const best = bodies.reduce((closest, body) => {
+                const gap = distance(point, body.position);
+                if (!closest || gap < closest.gap) return { body, gap };
+                return closest;
+            }, null);
+            return best && best.gap < 36 ? best.body : null;
+        }
+
+        function pointerPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+                y: ((event.clientY - rect.top) / rect.height) * canvas.height
+            };
+        }
+
+        function distance(a, b) {
+            return Math.hypot(a.x - b.x, a.y - b.y);
+        }
+
+        function updateBalance() {
+            if (gameOver || !torso) return;
+            const supportPoints = constraints.map((constraint) => constraint.pointA);
+            const supportMid = supportPoints.reduce((total, point) => ({
+                x: total.x + point.x / supportPoints.length,
+                y: total.y + point.y / supportPoints.length
+            }), { x: 0, y: 0 });
+            const handMid = {
+                x: (leftHand.position.x + rightHand.position.x) / 2,
+                y: (leftHand.position.y + rightHand.position.y) / 2
+            };
+            const handSpan = distance(leftHand.position, rightHand.position);
+            const footSpan = distance(leftFoot.position, rightFoot.position);
+            const centerOffset = Math.abs(torso.position.x - supportMid.x);
+            const verticalSag = Math.max(0, torso.position.y - handMid.y - 82);
+            const contactBonus = supportPoints.length * 14;
+            const footBaseBonus = Math.min(24, footSpan * 0.08);
+            const stress = centerOffset * 0.22 + verticalSag * 0.16 + Math.max(0, handSpan - 150) * 0.15 - contactBonus - footBaseBonus;
+            const limit = easyMode ? 86 : 66;
+            recoveryBoost = Math.max(0, recoveryBoost - 0.08);
+            balance = Math.max(0, Math.min(100, Math.round(100 - (stress / limit) * 100 + recoveryBoost)));
+
+            if (balance <= 0) {
+                gameOver = true;
+                message.textContent = "Game over. Balance broke before the next move.";
+            }
+        }
+
+        function updateHud(text) {
+            scoreText.textContent = score;
+            highPointText.textContent = `${highPoint}%`;
+            movesText.textContent = moves;
+            if (text) message.textContent = text;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawHolds();
+            drawRouteLine();
+            drawClimber();
+            updateHud();
+        }
+
+        function drawHolds() {
+            holds.forEach((hold) => {
+                ctx.beginPath();
+                ctx.fillStyle = hold.route ? colors.route : colors.wallHold;
+                ctx.strokeStyle = hold.route ? "#8b4b18" : "#9c927f";
+                ctx.lineWidth = hold.route ? 3 : 1;
+                ctx.ellipse(hold.x, hold.y, hold.route ? 16 : 12, hold.route ? 12 : 9, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+        }
+
+        function drawRouteLine() {
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(217, 123, 41, 0.42)";
+            ctx.lineWidth = 5;
+            route.forEach((hold, index) => {
+                if (index === 0) ctx.moveTo(hold.x, hold.y);
+                else ctx.lineTo(hold.x, hold.y);
+            });
+            ctx.stroke();
+        }
+
+        function drawClimber() {
+            if (!torso) return;
+            drawLimb(torso.position, leftHand.position);
+            drawLimb(torso.position, rightHand.position);
+            drawLimb(torso.position, leftFoot.position);
+            drawLimb(torso.position, rightFoot.position);
+            drawBody(torso.position, 24, colors.torso, torso);
+            drawBody(leftHand.position, 13, colors.left, leftHand);
+            drawBody(rightHand.position, 13, colors.right, rightHand);
+            drawBody(leftFoot.position, 11, colors.foot, leftFoot);
+            drawBody(rightFoot.position, 11, colors.foot, rightFoot);
+        }
+
+        function drawLimb(from, to) {
+            ctx.beginPath();
+            ctx.strokeStyle = "#3a3f45";
+            ctx.lineWidth = 6;
+            ctx.lineCap = "round";
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+        }
+
+        function drawBody(position, radius, color, bodyPart) {
+            if (bodyPart === selectedPart) {
+                ctx.beginPath();
+                ctx.strokeStyle = "#f4c95d";
+                ctx.lineWidth = 5;
+                ctx.arc(position.x, position.y, radius + 8, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function tick() {
+            if (window.Matter && engine && !gameOver) {
+                Matter.Engine.update(engine, 1000 / 60);
+                updateBalance();
+            }
+            draw();
+            requestAnimationFrame(tick);
+        }
+
+        newGame();
+        tick();
+    </script>
+</body>
+</html>
